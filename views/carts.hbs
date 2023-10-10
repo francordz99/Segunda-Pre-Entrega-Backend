@@ -1,0 +1,58 @@
+<button onclick="createCart()">Crear Carrito</button>
+<br><br>
+<button onclick="getCartById()">Obtener Carrito por ID</button>
+<br><br>
+<button onclick="addProductToCart()">Agregar Producto al Carrito</button>
+
+<script>
+    async function createCart() {
+        const response = await fetch('http://localhost:3000/carts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: '123456',
+                products: [
+                    { product: 'Product 1', quantity: 2 },
+                    { product: 'Product 2', quantity: 3 }
+                ]
+            })
+        });
+
+        const data = await response.json();
+        console.log('Response:', data);
+    }
+
+    async function getCartById() {
+        const cartId = '1694394290308';
+        const response = await fetch(`http://localhost:3000/carts/${cartId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+        console.log('Response:', data);
+    }
+
+    async function addProductToCart() {
+        const cartId = '1694394290308';
+        const response = await fetch(`http://localhost:3000/carts/${cartId}/add-product`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                product: {
+                    product: 'Product 3',
+                    quantity: 1
+                }
+            })
+        });
+
+        const data = await response.json();
+        console.log('Response:', data);
+    }
+</script>
