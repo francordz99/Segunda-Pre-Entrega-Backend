@@ -1,10 +1,8 @@
 const Cart = require('../models/cartModel');
 
-// Función para crear un nuevo carrito
-async function createCart(code) {
+async function createCart() {
     try {
         const cart = new Cart({
-            code,
             products: []
         });
         await cart.save();
@@ -14,10 +12,9 @@ async function createCart(code) {
     }
 }
 
-// Función para obtener un carrito por su código
-async function getCartByCode(code) {
+async function getCartById(cartId) {
     try {
-        const cart = await Cart.findOne({ code }).exec();
+        const cart = await Cart.findById(cartId).populate('products.product').exec();
         if (!cart) {
             throw new Error('Carrito no encontrado');
         }
@@ -27,15 +24,25 @@ async function getCartByCode(code) {
     }
 }
 
-async function addProductToCart(cartId, productId) {
+async function addProductToCart(cartId, productId, quantity) {
     try {
         const cart = await Cart.findById(cartId).exec();
         if (!cart) {
             throw new Error('Carrito no encontrado');
         }
 
-        // Agregar el producto al array de productos
-        cart.products.push(productId);
+        const productIndex = cart.products.findIndex(product => product.product.equals(productId));
+
+        if (productIndex !== -1) {
+            cart.products[productIndex].quantity += quantity;
+        } else {
+            const productToAdd = {
+                product: productId,
+                quantity: quantity
+            };
+            cart.products.push(productToAdd);
+        }
+
         await cart.save();
         return cart;
     } catch (error) {
@@ -50,8 +57,7 @@ async function removeProductFromCart(cartId, productId) {
             throw new Error('Carrito no encontrado');
         }
 
-        // Remover el producto del array de productos
-        cart.products = cart.products.filter(productIdInCart => productIdInCart.toString() !== productId);
+        cart.products = cart.products.filter(product => !product.product.equals(productId));
         await cart.save();
         return cart;
     } catch (error) {
@@ -59,7 +65,6 @@ async function removeProductFromCart(cartId, productId) {
     }
 }
 
-// Función para actualizar el carrito con un arreglo de productos
 async function updateCart(cartId, products) {
     try {
         const cart = await Cart.findById(cartId).exec();
@@ -67,8 +72,7 @@ async function updateCart(cartId, products) {
             throw new Error('Carrito no encontrado');
         }
 
-        // Actualizar el array de productos con el nuevo arreglo
-        cart.products = products.map(product => product.product_id);
+        cart.products = products;
         await cart.save();
         return cart;
     } catch (error) {
@@ -83,24 +87,25 @@ async function updateProductQuantity(cartId, productId, quantity) {
             throw new Error('Carrito no encontrado');
         }
 
-        // Encontrar el producto en el array de productos y actualizar la cantidad
-        const productIndex = cart.products.findIndex(productInCart => productInCart.toString() === productId);
+        const productIndex = cart.products.findIndex(product => product.product && product.product.equals(productId));
+
         if (productIndex !== -1) {
-            cart.products[productIndex] = {
-                product_id: productId,
-                quantity: quantity
-            };
-            await cart.save();
-            return cart;
+            cart.products[productIndex].quantity = quantity;
         } else {
-            throw new Error('Producto no encontrado en el carrito');
+            cart.products.push({
+                product: productId,
+                quantity: quantity
+            });
         }
+
+        await cart.save();
+        return cart;
     } catch (error) {
         throw new Error('Error al actualizar la cantidad del producto: ' + error.message);
     }
 }
 
-// Función para eliminar todos los productos del carrito
+
 async function removeAllProductsFromCart(cartId) {
     try {
         const cart = await Cart.findById(cartId).exec();
@@ -108,7 +113,6 @@ async function removeAllProductsFromCart(cartId) {
             throw new Error('Carrito no encontrado');
         }
 
-        // Eliminar todos los productos del array
         cart.products = [];
         await cart.save();
         return cart;
@@ -119,7 +123,7 @@ async function removeAllProductsFromCart(cartId) {
 
 module.exports = {
     createCart,
-    getCartByCode,
+    getCartById,
     addProductToCart,
     removeProductFromCart,
     updateCart,
