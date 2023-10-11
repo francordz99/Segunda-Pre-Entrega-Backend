@@ -1,15 +1,14 @@
+
 const ProductModel = require('../models/productModel');
-const { ObjectId } = require('mongoose').Types;
 
 class ProductsManager {
-    constructor() {
-    }
+    constructor() { }
 
     async readProductsFromDatabase() {
         try {
-            return await ProductModel.find();
+            return await ProductModel.find().lean();
         } catch (error) {
-            console.error("Error al leer productos de la base de datos:", error);
+            console.error('Error al leer productos de la base de datos:', error);
             throw error;
         }
     }
@@ -18,7 +17,16 @@ class ProductsManager {
         try {
             await ProductModel.insertMany(products);
         } catch (error) {
-            console.error("Error al escribir productos en la base de datos:", error);
+            console.error('Error al escribir productos en la base de datos:', error);
+            throw error;
+        }
+    }
+
+    async getTotalProducts(filters) {
+        try {
+            return await ProductModel.countDocuments(filters);
+        } catch (error) {
+            console.error('Error al obtener el total de productos:', error);
             throw error;
         }
     }
@@ -26,47 +34,36 @@ class ProductsManager {
     async addProduct(product) {
         try {
             const lastProduct = await ProductModel.findOne().sort({ _id: -1 });
-            const lastProductObjectId = lastProduct ? lastProduct._id : null;
-            product.code = `CODE${lastProductObjectId ? lastProductObjectId.toString().padStart(3, '0') : '001'}`;
-            delete product.id;
+            const lastProductCode = lastProduct ? parseInt(lastProduct.code.substr(4)) : 0;
+            product.code = `CODE${String(lastProductCode + 1).padStart(3, '0')}`;
             await ProductModel.create(product);
         } catch (error) {
-            console.error("Error al agregar un producto:", error);
+            console.error('Error al agregar un producto:', error);
             throw error;
         }
     }
 
-    async getProducts() {
+    async getProducts(limit, page, query, sort) {
         try {
-            return await this.readProductsFromDatabase();
-        } catch (error) {
-            console.error("Error al obtener productos:", error);
-            throw error;
-        }
-    }
+            let queryOptions = {};
 
-    async getProductById(id) {
-        try {
-            const objectId = new ObjectId(id);
-            return await ProductModel.findOne({ _id: objectId });
-        } catch (error) {
-            console.error("Error al obtener producto por ID:", error);
-            throw error;
-        }
-    }
+            if (query) {
+                queryOptions.$or = [
+                    { title: { $regex: new RegExp(query, 'i') } },
+                    { category: { $regex: new RegExp(query, 'i') } }
+                ];
+            }
 
-    async updateProduct(id, updatedFields) {
-        try {
-            const objectId = new ObjectId(id);
-            const updatedProduct = await ProductModel.findOneAndUpdate(
-                { _id: objectId },
-                { $set: updatedFields },
-                { new: true }
-            );
+            const sortOptions = sort && (sort.toLowerCase() === 'desc') ? { price: -1 } : { price: 1 };
 
-            return updatedProduct;
+            const products = await ProductModel.find(queryOptions)
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .sort(sortOptions);
+
+            return products;
         } catch (error) {
-            console.error("Error al actualizar producto:", error);
+            console.error('Error al obtener productos:', error);
             throw error;
         }
     }
@@ -86,17 +83,6 @@ class ProductsManager {
         }
     }
 
-
-    async deleteProduct(id) {
-        try {
-            const objectId = new ObjectId(id);
-            await ProductModel.deleteOne({ _id: objectId });
-        } catch (error) {
-            console.error("Error al eliminar producto:", error);
-            throw error;
-        }
-    }
-
     async deleteProductByCode(code) {
         try {
             await ProductModel.findOneAndDelete({ code: code });
@@ -106,8 +92,5 @@ class ProductsManager {
         }
     }
 }
-
-
-
 
 module.exports = ProductsManager;

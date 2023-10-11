@@ -10,6 +10,7 @@ const { connectDB } = require('./src/config/dbConnect');
 const ProductsManager = require('./dao/mongodb/productManager.js');
 const MessageManager = require('./dao/mongodb/messageManager.js');
 const { CartManager } = require('./dao/mongodb/cartManager.js');
+const ProductModel = require('./dao/models/productModel.js');
 const messageManager = new MessageManager();
 
 const app = express();
@@ -72,12 +73,26 @@ io.on('connection', (socket) => {
 
 // Rutas Handlebars
 
-app.get("/", async (req, res) => {
+app.get('/', async (req, res) => {
+    try {
+        const productsManager = new ProductsManager();
+        const products = await productsManager.readProductsFromDatabase();
+        res.render('products', { products });
+    } catch (error) {
+        console.error('Error al obtener productos:', error);
+        res.status(500).send('Error interno del servidor');
+    }
+});
+
+
+// Rutas handlebars pero de filesystem
+
+/* app.get("/", async (req, res) => {
     try {
         const productManager = new ProductManager('./dao/filesystem/products.json');
         const products = await productManager.getProducts();
 
-        res.render("home", { products });
+        res.render("products", { products });
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener los productos.' });
@@ -94,7 +109,7 @@ app.get("/realtime", async (req, res) => {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener los productos en tiempo real.' });
     }
-});
+}); */
 
 app.get("/chat", (req, res) => {
     res.render('chat');

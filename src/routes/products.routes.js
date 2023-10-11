@@ -6,17 +6,45 @@ const productsManager = new ProductsManager();
 
 router.get('/', async (req, res) => {
     try {
-        const products = await productsManager.getProducts();
-        res.json(products);
+        let { limit, page, sort } = req.query;
+        limit = limit ? parseInt(limit) : 10;
+        page = page ? parseInt(page) : 1;
+
+        let query = req.query.query;  // Ajuste para obtener el parámetro "query"
+
+        const products = await productsManager.getProducts(limit, page, query, sort);
+
+        const totalProducts = await productsManager.getTotalProducts({});  // Se busca total sin filtros
+        const totalPages = Math.ceil(totalProducts / limit);
+        const hasNextPage = page < totalPages;
+        const hasPrevPage = page > 1;
+
+        const prevLink = hasPrevPage ? `${req.baseUrl}?page=${page - 1}&limit=${limit}&query=${query}` : null;
+        const nextLink = hasNextPage ? `${req.baseUrl}?page=${page + 1}&limit=${limit}&query=${query}` : null;
+
+        const result = {
+            status: 'success',
+            payload: products,
+            totalPages,
+            prevPage: hasPrevPage ? page - 1 : null,
+            nextPage: hasNextPage ? page + 1 : null,
+            page,
+            hasPrevPage,
+            hasNextPage,
+            prevLink,
+            nextLink
+        };
+
+        res.json(result);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Error al obtener los productos.' });
     }
 });
 
-router.get('/:pid', async (req, res) => {
+router.get('/:productCode', async (req, res) => {
     try {
-        const product = await productsManager.getProductById(req.params.pid);
+        const product = await productsManager.updateProductByCode(req.params.productCode);
         if (product) {
             res.json(product);
         } else {
@@ -64,7 +92,6 @@ router.put('/:productCode', async (req, res) => {
             return res.status(400).json({ error: 'Ningún campo proporcionado para actualizar.' });
         }
 
-        // Llama a la función para actualizar por código
         await productsManager.updateProductByCode(productCode, updatedFields);
         res.status(200).json({ message: 'Producto actualizado con éxito.' });
     } catch (error) {
@@ -72,6 +99,7 @@ router.put('/:productCode', async (req, res) => {
         res.status(500).json({ error: 'Error al actualizar el producto.' });
     }
 });
+
 router.delete('/by-code/:productCode', async (req, res) => {
     try {
         const productCode = req.params.productCode;
@@ -84,6 +112,5 @@ router.delete('/by-code/:productCode', async (req, res) => {
         res.status(500).json({ error: 'Error al eliminar el producto.' });
     }
 });
-
 
 module.exports = router;
